@@ -497,6 +497,7 @@ impl FileWriter {
             "unsignedShort" => "u16".to_string(),
             "unsignedByte" => "u8".to_string(),
             "short" => "i16".to_string(),
+            "duration" => "i32".to_string(),
             "boolean" => "bool".to_string(),
             // use String for date types
             "date" | "dateTime" | "time" => "String".to_string(),
@@ -561,12 +562,13 @@ impl FileWriter {
 
         let mut field = Element::new("body", ElementType::Field);
         let field_type = self.fetch_type(&type_name);
+        let is_i32 = field_type == "i32";
         field.text_field = field_type == "String";
         field.field_type = Option::Some(field_type);
         field.xml_name = None;
 
         // text fields are automatically "flattened"
-        field.flatten = !field.text_field;
+        field.flatten = !field.text_field && !is_i32;
 
         parent_element.add(field);
 
@@ -957,8 +959,9 @@ impl FileWriter {
             format!(
                 r#"impl {0} {{
                 pub fn new(url: &str, credentials: Option<(String,String)>) -> Self {{
+                    let client = reqwest::Client::builder().danger_accept_invalid_certs(true).build().unwrap();
                     {0} {{
-                        client: reqwest::Client::new(),
+                        client,
                         url: url.to_string(),
                         credentials,
                     }}
@@ -1399,9 +1402,13 @@ impl FileWriter {
             Some(sa) => sa.to_string(),
         };
 
-        let xmlns = match &self.target_name_space {
-            None => "Option::None".to_string(),
-            Some(tns) => format!("Option::Some(\"{}\".to_string())", tns),
+        let xmlns = if self.default_namespace.is_some() {
+            format!("Option::Some(\"{}\".to_string())", self.default_namespace.as_ref().unwrap())
+        }else {
+            match &self.target_name_space {
+                None => "Option::None".to_string(),
+                Some(tns) => format!("Option::Some(\"{}\".to_string())", tns),
+            }
         };
 
         parent.append_content(

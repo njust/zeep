@@ -252,7 +252,7 @@ impl Element {
             result.push_str(&options);
         }
 
-        result.push_str(&format!("pub struct {} {{\n", self.name));
+        result.push_str(&format!("pub struct {} {{\n", Self::get_name(&self.name)));
 
         if self.has_children() {
             let r: String = self.children.iter().map(|c| c.borrow().render()).collect();
@@ -261,6 +261,14 @@ impl Element {
 
         result.push_str("}\n");
         result
+    }
+
+    fn get_name(name: &str) -> String {
+        if name == "Result" {
+            format!("{}_", name)
+        }else {
+            name.to_string()
+        }
     }
 
     fn render_trait(&self) -> String {
@@ -362,12 +370,13 @@ impl Element {
 
     fn render_field_type(&self) -> String {
         if let Some(field_type) = &self.field_type {
+            let field_type_name = Self::get_name(field_type);
             if self.vector {
-                format!("Vec<{}>", field_type)
+                format!("Vec<{}>", field_type_name)
             } else if self.optional {
-                format!("Option<{}>", field_type)
+                format!("Option<{}>", field_type_name)
             } else {
-                field_type.to_string()
+                field_type_name
             }
         } else {
             "".to_string()
