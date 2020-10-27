@@ -66,7 +66,7 @@ pub fn root() -> Element {
 
 /// This trait renders the element to Rust code
 pub trait WritableElement {
-    fn render(&self) -> String;
+    fn render(&self, parent_prefix: Option<String>) -> String;
 }
 
 /// An element that has a statically defined Rust code. There is no interpretation during rendering.
@@ -88,11 +88,11 @@ pub trait NamespacedElement {
 
 /// Various render functions for the different Element types.
 impl WritableElement for Element {
-    fn render(&self) -> String {
+    fn render(&self, parent_prefix: Option<String>) -> String {
         match self.element_type {
             ElementType::Root => self.render_root(),
             ElementType::Struct => self.render_struct(),
-            ElementType::Field => self.render_field(),
+            ElementType::Field => self.render_field(parent_prefix),
             ElementType::Static => self.render_static(),
             ElementType::Alias => self.render_alias(),
             ElementType::Module => self.render_module(),
@@ -210,7 +210,7 @@ impl Element {
     }
 
     fn render_root(&self) -> String {
-        self.children.iter().map(|c| c.borrow().render()).collect()
+        self.children.iter().map(|c| c.borrow().render(None)).collect()
     }
 
     fn render_struct(&self) -> String {
@@ -255,7 +255,7 @@ impl Element {
         result.push_str(&format!("pub struct {} {{\n", Self::get_name(&self.name)));
 
         if self.has_children() {
-            let r: String = self.children.iter().map(|c| c.borrow().render()).collect();
+            let r: String = self.children.iter().map(|c| c.borrow().render(self.prefix.clone())).collect();
             result.push_str(&r);
         }
 
@@ -273,7 +273,7 @@ impl Element {
 
     fn render_trait(&self) -> String {
         let mut result = format!("#[async_trait]\npub trait {0} {{\n", self.name);
-        let r: String = self.children.iter().map(|c| c.borrow().render()).collect();
+        let r: String = self.children.iter().map(|c| c.borrow().render(self.prefix.clone())).collect();
         result.push_str(&r);
         result.push_str("}\n");
         result
@@ -290,13 +290,13 @@ impl Element {
             field_type, self.name
         );
 
-        let r: String = self.children.iter().map(|c| c.borrow().render()).collect();
+        let r: String = self.children.iter().map(|c| c.borrow().render(self.prefix.clone())).collect();
         result.push_str(&r);
         result.push_str("}\n");
         result
     }
 
-    fn render_field(&self) -> String {
+    fn render_field(&self, parent_prefix: Option<String>) -> String {
         let mut bool_options = if self.flatten {
             "flatten, ".to_string()
         } else {
@@ -312,9 +312,13 @@ impl Element {
             Some(c) => format!("// {}", c),
         };
 
-        let prefix = match &self.prefix {
-            Some(p) => format!("prefix = \"{}\", ", p),
-            None => "".to_string(),
+        let prefix = if let Some(pp) = parent_prefix {
+            format!("prefix = \"{}\", ", pp)
+        }else {
+            match &self.prefix {
+                Some(p) => format!("prefix = \"{}\", ", p),
+                None => "".to_string(),
+            }
         };
 
         if let Some(xml_name) = &self.xml_name {
@@ -415,7 +419,7 @@ impl Element {
             "#,
         );
 
-        let child_content: String = self.children.iter().map(|c| c.borrow().render()).collect();
+        let child_content: String = self.children.iter().map(|c| c.borrow().render(self.prefix.clone())).collect();
         result.push_str(child_content.as_str());
 
         result.push_str("}\n\n");

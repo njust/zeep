@@ -133,7 +133,7 @@ impl FileWriter {
 
         // once all elements are processed, write them to output
         if let Some(mut writer) = self.writer.take() {
-            writer.write_all(self.root.render().as_bytes())?;
+            writer.write_all(self.root.render(None).as_bytes())?;
             self.writer.replace(writer);
         }
 
@@ -531,9 +531,11 @@ impl FileWriter {
                 e.xml_name = Option::Some(name.to_string());
                 e
             } else {
-                e.prefix = Option::Some(self.ns_prefix.to_string());
+                let a = e.name.to_lowercase();
+                let prefix = String::from(&a[0..3]);
+                e.add_ns(&prefix, &tns);
+                e.prefix = Option::Some(prefix);
                 e.xml_name = Option::Some(name.to_string());
-                e.add_ns(&self.ns_prefix, &tns);
                 e
             }
         } else {
@@ -958,8 +960,7 @@ impl FileWriter {
         e.set_content(
             format!(
                 r#"impl {0} {{
-                pub fn new(url: &str, credentials: Option<(String,String)>) -> Self {{
-                    let client = reqwest::Client::builder().danger_accept_invalid_certs(true).build().unwrap();
+                pub fn new(url: &str, client: reqwest::Client, credentials: Option<(String,String)>) -> Self {{
                     {0} {{
                         client,
                         url: url.to_string(),
@@ -1518,11 +1519,10 @@ impl FileWriter {
         e.append_content(
             format!(
                 r#"
-            pub fn new_client(credentials: Option<(String, String)>) -> {2}::{1} {{
-                {2}::{1}::new("{0}", credentials)
+            pub fn new_client(url: &str, client: reqwest::Client, credentials: Option<(String, String)>) -> {1}::{0} {{
+                {1}::{0}::new(url, client, credentials)
             }}
         "#,
-                location,
                 to_pascal_case(binding.as_str()),
                 BINDINGS_MOD,
             )
