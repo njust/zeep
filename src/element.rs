@@ -272,7 +272,7 @@ impl Element {
     }
 
     fn render_trait(&self) -> String {
-        let mut result = format!("#[async_trait]\npub trait {0} {{\n", self.name);
+        let mut result = format!("pub trait {0} {{\n", self.name);
         let r: String = self.children.iter().map(|c| c.borrow().render(self.prefix.clone())).collect();
         result.push_str(&r);
         result.push_str("}\n");
@@ -286,7 +286,7 @@ impl Element {
         };
 
         let mut result = format!(
-            "#[async_trait]\n\timpl {0} for {1} {{\n",
+            "\timpl {0} for {1} {{\n",
             field_type, self.name
         );
 
@@ -413,7 +413,6 @@ impl Element {
         result.push_str(
             r#"use yaserde::{YaSerialize, YaDeserialize};
             use yaserde::de::from_str;
-            use async_trait::async_trait;
             use yaserde::ser::to_string;
             use super::*;
             "#,
@@ -446,7 +445,7 @@ impl Element {
         let function_input = format!("{}: {}", args.input_name, args.input_type);
 
         format!(
-            "\tasync fn {} (&self, {}) {};\n",
+            "\tfn {} (&self, {}) {};\n",
             self.name, function_input, function_result
         )
     }

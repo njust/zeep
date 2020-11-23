@@ -872,7 +872,7 @@ impl FileWriter {
         client.set_content(
             format!(
                 r#"pub struct {0} {{
-                client: reqwest::Client,
+                client: reqwest::blocking::Client,
                 url: String,
                 credentials: Option<(String,String)>
                 }}
@@ -900,7 +900,7 @@ impl FileWriter {
         let mut e = Element::new(struct_name, ElementType::Static);
         e.set_content(format!(r#"
             impl {0} {{
-                async fn send_soap_request<T: YaSerialize>(&self, request: &T, action: &str) -> SoapResponse {{
+                fn send_soap_request<T: YaSerialize>(&self, request: &T, action: &str) -> SoapResponse {{
                     let body = to_string(request).expect("failed to generate xml");
                     debug!("SOAP Request: {{}}", body);
                     let mut req = self
@@ -915,10 +915,10 @@ impl FileWriter {
                             Option::Some(credentials.1.to_string()),
                         );
                     }}
-                    let res = req.send().await?;
+                    let res = req.send()?;
                     let status = res.status();
                     debug!("SOAP Status: {{}}", status);
-                    let txt = res.text().await.unwrap_or_default();
+                    let txt = res.text().unwrap_or_default();
                     debug!("SOAP Response: {{}}", txt);
                     Ok((status, txt))
                 }}
@@ -940,7 +940,7 @@ impl FileWriter {
                 r#"impl Default for {0} {{
                 fn default() -> Self {{
                     {0} {{
-                        client: reqwest::Client::new(),
+                        client: reqwest::blocking::Client::new(),
                         url: "{1}".to_string(),
                         credentials: Option::None,
                      }}
@@ -960,7 +960,7 @@ impl FileWriter {
         e.set_content(
             format!(
                 r#"impl {0} {{
-                pub fn new(url: &str, client: reqwest::Client, credentials: Option<(String,String)>) -> Self {{
+                pub fn new(url: &str, client: reqwest::blocking::Client, credentials: Option<(String,String)>) -> Self {{
                     {0} {{
                         client,
                         url: url.to_string(),
@@ -1346,7 +1346,7 @@ impl FileWriter {
         let mut e = Element::new(&func_name, ElementType::Static);
         e.set_content(
             format!(
-                "\tasync fn {} (&self, {}) {} {{\n",
+                "\tfn {} (&self, {}) {} {{\n",
                 func_name, input_template, output_template,
             )
             .as_str(),
@@ -1421,7 +1421,6 @@ impl FileWriter {
         }});            
         
         let (status, response) = self.send_soap_request(&__request, "{3}")
-                    .await
                     .map_err(|err| {{
                         warn!("Failed to send SOAP request: {{:?}}", err);
                         None
@@ -1519,7 +1518,7 @@ impl FileWriter {
         e.append_content(
             format!(
                 r#"
-            pub fn new_client(url: &str, client: reqwest::Client, credentials: Option<(String, String)>) -> {1}::{0} {{
+            pub fn new_client(url: &str, client: reqwest::blocking::Client, credentials: Option<(String, String)>) -> {1}::{0} {{
                 {1}::{0}::new(url, client, credentials)
             }}
         "#,
